@@ -13,6 +13,10 @@ if (!secretKey || !appId) {
   process.exit(1)
 }
 
+// TypeScript now knows these are defined
+const SECRET_KEY: string = secretKey
+const APP_ID: string = appId
+
 // Sample course data
 const courseTemplates = [
   {
@@ -138,7 +142,7 @@ async function seedCourses() {
     await Promise.all(
       batch.map(async (course, index) => {
         try {
-          const record = await createDataTableRecord(appId, secretKey, "courses", course)
+          const record = await createDataTableRecord(APP_ID, SECRET_KEY, "courses", course)
           successCount++
           console.log(`✓ Created course ${i + index + 1}/50: ${course.title}`)
         } catch (error: any) {

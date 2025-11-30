@@ -15,6 +15,7 @@ export interface Course {
   tags?: string[]
   created_at?: string
   updated_at?: string
+  lessons?: string // Comma-separated list of lesson titles or lesson data
 }
 
 async function getAuthHeaders(): Promise<HeadersInit> {
@@ -172,7 +173,11 @@ export async function seedCourses(count: number = 50): Promise<{ success: boolea
   const headers = await getAuthHeaders()
   
   // Check if Authorization header is present
-  if (!headers.Authorization) {
+  const authHeader = headers instanceof Headers 
+    ? headers.get("Authorization")
+    : (headers as Record<string, string>)["Authorization"]
+  
+  if (!authHeader) {
     throw new Error("Authentication required. Please sign in first. The token may have expired or not been stored correctly.")
   }
 

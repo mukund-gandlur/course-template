@@ -98,10 +98,10 @@ export default function CoursesPage() {
 
       let filteredCourses = formattedCourses
       if (!user) {
-        filteredCourses = formattedCourses.filter((c) => c.status === "published")
+        filteredCourses = formattedCourses.filter((c: Course) => c.status === "published")
       } else {
         filteredCourses = formattedCourses.filter(
-          (c) => c.status === "published" || c.owner_id === user.id || c.owner_id === user.memberId
+          (c: Course) => c.status === "published" || c.owner_id === user.id || c.owner_id === user.memberId
         )
       }
 
@@ -376,6 +376,7 @@ export default function CoursesPage() {
                 <h3 className="text-sm font-semibold text-gray-700 mb-2">Categories</h3>
                 <div className="space-y-1">
                   {categories.map((category) => {
+                    if (!category) return null
                     const count = categoryCounts[category] || 0
                     const isSelected = selectedCategory === category
                     return (
