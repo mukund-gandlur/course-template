@@ -38,12 +38,24 @@ export default function HomePage() {
   const [migrationDialogOpen, setMigrationDialogOpen] = useState(false)
   const [migrationResult, setMigrationResult] = useState<any>(null)
   const [copiedField, setCopiedField] = useState<string | null>(null)
+  const [tablesExist, setTablesExist] = useState<boolean | null>(null)
 
   useEffect(() => {
     const cachedUser = getCachedUser()
     setUser(cachedUser)
     loadCourses()
+    checkTablesExist()
   }, [])
+
+  const checkTablesExist = async () => {
+    try {
+      const result = await runMigration()
+      setTablesExist(result.tableExists === true)
+    } catch (err) {
+      // If check fails, assume tables don't exist
+      setTablesExist(false)
+    }
+  }
 
   const loadCourses = async () => {
     try {
@@ -107,6 +119,7 @@ export default function HomePage() {
       setError(null)
       const result = await runMigration()
       setMigrationResult(result)
+      setTablesExist(result.tableExists === true)
       if (result.success) {
         await loadCourses()
       } else {
@@ -173,29 +186,48 @@ export default function HomePage() {
           </div>
           {courses.length === 0 ? (
             <Card className="max-w-2xl mx-auto">
-              <CardContent className="py-16 text-center">
-                <div className="max-w-md mx-auto">
-                  <Database className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">No courses available</h3>
-                  <p className="text-muted-foreground mb-6">
-                    Get started by creating the data tables and adding some sample courses.
+              <CardContent className="py-16">
+                <div className="max-w-2xl mx-auto">
+                  <div className="flex items-start gap-8">
+                    <div className="flex-1 space-y-4">
+                      <div className="flex items-start gap-3">
+                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-purple-100 text-purple-600 font-semibold text-sm flex items-center justify-center mt-0.5">1</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-muted-foreground mb-2">
+                          Create course tables to continue.
                   </p>
-                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
                     <Button
                       onClick={handleMigration}
-                      disabled={migrating}
+                          disabled={migrating || tablesExist === true}
                       variant="outline"
+                          size="sm"
+                          className={tablesExist === true ? "opacity-50 cursor-not-allowed" : ""}
                     >
                       <Database className="h-4 w-4 mr-2" />
-                      {migrating ? "Checking Tables..." : "Create Data Tables"}
+                          {migrating ? "Checking Tables..." : tablesExist === true ? "Tables Already Created" : "Create Data Tables"}
                     </Button>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-gray-100 text-gray-600 font-semibold text-sm flex items-center justify-center mt-0.5">2</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-muted-foreground mb-2">
+                          Add sample courses (optional).
+                        </p>
                     <Button
                       onClick={async () => {
                         try {
                           setSeeding(true)
                           setError(null)
                           const result = await seedCourses(50)
-                          alert(`Successfully created ${result.created} courses!`)
+                          if (result.errors > 0) {
+                            const errorMsg = result.errorDetails 
+                              ? `Created ${result.created} courses. ${result.errors} failed.\n\nFirst errors:\n${result.errorDetails.slice(0, 3).join('\n')}`
+                              : `Created ${result.created} courses. ${result.errors} failed.`
+                            alert(errorMsg)
+                          } else {
+                            alert(`Successfully created ${result.created} courses!`)
+                          }
                           await loadCourses()
                         } catch (err: any) {
                           setError(err?.message || "Failed to seed courses. Make sure you're logged in.")
@@ -204,14 +236,21 @@ export default function HomePage() {
                         }
                       }}
                       disabled={seeding || !user}
-                      className="bg-purple-600 hover:bg-purple-700"
+                          variant="outline"
+                          size="sm"
                     >
                       <Plus className="h-4 w-4 mr-2" />
                       {seeding ? "Adding Courses..." : "Add Sample Courses"}
                     </Button>
+                      </div>
+                    </div>
+                    </div>
+                    <div className="flex-shrink-0 hidden md:block">
+                      <Database className="h-48 w-48 text-gray-300" />
+                    </div>
                   </div>
                   {!user && (
-                    <p className="text-xs text-muted-foreground mt-4">
+                    <p className="text-xs text-muted-foreground mt-4 text-center">
                       Sign in to add sample courses
                     </p>
                   )}
@@ -249,6 +288,7 @@ export default function HomePage() {
         </div>
       )}
 
+      {courses.length === 0 && (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-16">
         <Card>
           <CardHeader>
@@ -281,6 +321,7 @@ export default function HomePage() {
           </CardContent>
         </Card>
       </div>
+      )}
 
       {/* Migration Dialog */}
       <Dialog open={migrationDialogOpen} onOpenChange={setMigrationDialogOpen}>
@@ -373,10 +414,88 @@ export default function HomePage() {
                 </div>
               </div>
 
+              {/* MCP Instructions */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900 mb-2">Create Table Using MCP (Recommended)</h3>
+                <p className="text-sm text-gray-600 mb-3">
+                  You can create the table programmatically using Memberstack MCP. Copy the prompt below and use it with your MCP client:
+                </p>
+                <div className="bg-gray-900 rounded-lg p-4 relative">
+                  <pre className="text-xs text-gray-100 whitespace-pre-wrap font-mono overflow-x-auto">
+{`create the courses table using mcp, on courses-boilerplate app sandbox
+
+Table configuration:
+- Name: Courses
+- Key: courses
+- Create Rule: AUTHENTICATED
+- Read Rule: PUBLIC
+- Update Rule: AUTHENTICATED_OWN
+- Delete Rule: AUTHENTICATED_OWN
+
+Fields to create:
+1. title (TEXT, required) - Course title
+2. owner_id (MEMBER_REFERENCE, required) - Owner of the course
+3. description (TEXT, optional) - Course description
+4. video_link (TEXT, optional) - Video link
+5. thumbnail_url (TEXT, optional) - Thumbnail URL
+6. priceCents (NUMBER, optional) - Price in cents
+7. status (TEXT, optional) - Status: draft, published, or archived
+8. duration (NUMBER, optional) - Duration in minutes
+9. category (TEXT, optional) - Course category
+10. tags (TEXT, optional) - Tags (comma-separated)
+11. lessons (TEXT, optional) - Lessons data
+12. created_at (DATE, optional) - Creation date
+13. updated_at (DATE, optional) - Last update date`}
+                  </pre>
+                  <button
+                    onClick={() => {
+                      const prompt = `create the courses table using mcp, on courses-boilerplate app sandbox
+
+Table configuration:
+- Name: Courses
+- Key: courses
+- Create Rule: AUTHENTICATED
+- Read Rule: PUBLIC
+- Update Rule: AUTHENTICATED_OWN
+- Delete Rule: AUTHENTICATED_OWN
+
+Fields to create:
+1. title (TEXT, required) - Course title
+2. owner_id (MEMBER_REFERENCE, required) - Owner of the course
+3. description (TEXT, optional) - Course description
+4. video_link (TEXT, optional) - Video link
+5. thumbnail_url (TEXT, optional) - Thumbnail URL
+6. priceCents (NUMBER, optional) - Price in cents
+7. status (TEXT, optional) - Status: draft, published, or archived
+8. duration (NUMBER, optional) - Duration in minutes
+9. category (TEXT, optional) - Course category
+10. tags (TEXT, optional) - Tags (comma-separated)
+11. lessons (TEXT, optional) - Lessons data
+12. created_at (DATE, optional) - Creation date
+13. updated_at (DATE, optional) - Last update date`
+                      navigator.clipboard.writeText(prompt)
+                      setCopiedField('mcp-prompt')
+                      setTimeout(() => setCopiedField(null), 2000)
+                    }}
+                    className="absolute top-3 right-3 text-gray-400 hover:text-white transition-colors"
+                    title="Copy prompt"
+                  >
+                    {copiedField === 'mcp-prompt' ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  After creating the table with MCP, click "Close" and then click "Create Data Tables" again to verify.
+                </p>
+              </div>
+
               {/* Instructions */}
               {migrationResult?.instructions && (
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-900 mb-2">Step-by-Step Instructions</h3>
+                  <h3 className="text-sm font-semibold text-gray-900 mb-2">Or Create Table Manually in Dashboard</h3>
                   <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700 bg-gray-50 rounded-lg p-4">
                     {migrationResult.instructions.map((instruction: string, index: number) => (
                       <li key={index} className="leading-relaxed">{instruction}</li>

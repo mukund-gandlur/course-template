@@ -164,7 +164,7 @@ export async function runMigration(): Promise<{
   return await response.json()
 }
 
-export async function seedCourses(count: number = 50): Promise<{ success: boolean; created: number; errors: number; requested: number; message: string }> {
+export async function seedCourses(count: number = 50): Promise<{ success: boolean; created: number; errors: number; requested: number; message: string; errorDetails?: string[] }> {
   const url = new URL(`${BASE_URL}/api/seed-courses`)
   if (count !== 50) {
     url.searchParams.set("count", count.toString())

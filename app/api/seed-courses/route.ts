@@ -182,7 +182,7 @@ export async function POST(request: NextRequest) {
               status: course.status,
               duration: course.duration,
               category: course.category,
-              tags: course.tags,
+              tags: Array.isArray(course.tags) ? course.tags.join(", ") : course.tags,
               created_at: course.created_at,
               updated_at: course.updated_at,
             }
@@ -199,8 +199,10 @@ export async function POST(request: NextRequest) {
             })
 
             if (!response.ok) {
-              const error = await response.json().catch(() => ({ error: response.statusText }))
-              throw new Error(error.error || error.message || `Failed to create course: ${response.statusText}`)
+              const errorData = await response.json().catch(() => ({ error: response.statusText }))
+              const errorMessage = errorData.error || errorData.message || `Failed to create course: ${response.statusText}`
+              console.error(`Failed to create course ${i + index + 1}:`, errorMessage, errorData)
+              throw new Error(errorMessage)
             }
 
             successCount++
